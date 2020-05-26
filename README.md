@@ -8,10 +8,12 @@ Use the package manager [conda](https://docs.conda.io/en/latest/) to install RLA
 
 ```bash
 git clone https://github.com/theorist17/rlarm/
-cd rlarm/gym_rlarm
-pip install -e .
-cd ..
+cd rlarm
 conda create -f environment.yaml --name rlarm
+conda activate rlarm
+cd gym_rlarm
+python setup.py install
+cd ..
 ```
 
 ## Usage
