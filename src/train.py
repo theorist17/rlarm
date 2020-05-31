@@ -23,7 +23,7 @@ class DQNAgent:
         self.discount_factor = 0.99
         self.learning_rate = 0.001
         self.epsilon = 1.0
-        self.epsilon_decay = 0.999
+        self.epsilon_decay = 0.9999
         self.epsilon_min = 0.01
         self.batch_size = 64
         self.train_start = 1000
@@ -45,6 +45,18 @@ class DQNAgent:
     def build_model(self):
         model = Sequential()
         model.add(Dense(24, input_dim=self.state_size, activation='relu',
+                        kernel_initializer='he_uniform'))
+        model.add(Dense(24, activation='relu',
+                        kernel_initializer='he_uniform'))
+        model.add(Dense(24, activation='relu',
+                        kernel_initializer='he_uniform'))
+        model.add(Dense(24, activation='relu',
+                        kernel_initializer='he_uniform'))
+        model.add(Dense(24, activation='relu',
+                        kernel_initializer='he_uniform'))
+        model.add(Dense(24, activation='relu',
+                        kernel_initializer='he_uniform'))
+        model.add(Dense(24, activation='relu',
                         kernel_initializer='he_uniform'))
         model.add(Dense(24, activation='relu',
                         kernel_initializer='he_uniform'))
@@ -105,61 +117,71 @@ class DQNAgent:
         self.model.fit(states, target, batch_size=self.batch_size,
                        epochs=1, verbose=0)
 
-
 if __name__ == "__main__":
     # gym_rlarm-v0 환경
     env = gym.make('gym_rlarm:rlarm-v0')
 
-    # state_size = env.observation_space.shape[0]
-    # action_size = env.action_space.n
-    #
-    # # DQN 에이전트 생성
-    # agent = DQNAgent(state_size, action_size)
-    #
-    # scores, episodes = [], []
-    #
-    # for e in range(EPISODES):
-    #     done = False
-    #     score = 0
-    #     # env 초기화
-    #     state = env.reset()
-    #     state = np.reshape(state, [1, state_size])
-    #
-    #     while not done:
-    #         if agent.render:
-    #             env.render()
-    #
-    #         # 현재 상태로 행동을 선택
-    #         action = agent.get_action(state)
-    #         # 선택한 행동으로 환경에서 한 타임스텝 진행
-    #         next_state, reward, done, info = env.step(action)
-    #         next_state = np.reshape(next_state, [1, state_size])
-    #         # 에피소드가 중간에 끝나면 -100 보상
-    #         reward = reward if not done or score == 499 else -100
-    #
-    #         # 리플레이 메모리에 샘플 <s, a, r, s'> 저장
-    #         agent.append_sample(state, action, reward, next_state, done)
-    #         # 매 타임스텝마다 학습
-    #         if len(agent.memory) >= agent.train_start:
-    #             agent.train_model()
-    #
-    #         score += reward
-    #         state = next_state
-    #
-    #         if done:
-    #             # 각 에피소드마다 타깃 모델을 모델의 가중치로 업데이트
-    #             agent.update_target_model()
-    #
-    #             score = score if score == 500 else score + 100
-    #             # 에피소드마다 학습 결과 출력
-    #             scores.append(score)
-    #             episodes.append(e)
-    #             pylab.plot(episodes, scores, 'b')
-    #             pylab.savefig("../logs/rlarm_dqn.png")
-    #             print("episode:", e, "  score:", score, "  memory length:",
-    #                   len(agent.memory), "  epsilon:", agent.epsilon)
-    #
-    #             # 이전 10개 에피소드의 점수 평균이 490보다 크면 학습 중단
-    #             if np.mean(scores[-min(10, len(scores)):]) > 490:
-    #                 agent.model.save_weights("../models/rlarm_dqn.h5")
-    #                 sys.exit()
+    state_size = env.observation_space.shape[0]
+    action_size = env.action_space.n
+
+    # DQN 에이전트 생성
+    agent = DQNAgent(state_size, action_size)
+
+    scores, episodes = [], []
+
+    for e in range(EPISODES):
+        done = False
+        score = 0
+        # env 초기화
+        state = env.reset()
+        state = np.reshape(state, [1, state_size])
+
+        while not done:
+            if agent.render:
+                env.render()
+
+            # 현재 상태로 행동을 선택
+            action = agent.get_action(state)
+
+            act = np.array([0] * 5, dtype=np.float16)
+            if action % 2 == 1:
+                act[int(action/2)] = -0.05
+            elif action % 2 == 0:
+                act[int(action/2)] = 0.05
+            #print('now', state[0], act)
+            # 선택한 행동으로 환경에서 한 타임스텝 진행
+            next_state, reward, done, info = env.step(act+state[0])
+            next_state = np.reshape(next_state, [1, state_size])
+
+            # 에피소드가 중간에 끝나면 -100 보상
+            reward = reward if not done or score >= 499 else -100
+
+            # 리플레이 메모리에 샘플 <s, a, r, s'> 저장
+            agent.append_sample(state, action, reward, next_state, done)
+            # 매 타임스텝마다 학습
+            if len(agent.memory) >= agent.train_start:
+                agent.train_model()
+
+            score += reward
+            state = next_state
+
+            if done:
+                print(score)
+
+            if done:
+                # 각 에피소드마다 타깃 모f델을 모델의 가중치로 업데이트
+                agent.update_target_model()
+
+                score = score if score == 500 else score + 100
+                # 에피소드마다 학습 결과 출력
+                scores.append(score)
+                episodes.append(e)
+                pylab.plot(episodes, scores, 'b')
+                pylab.savefig("../logs/rlarm_dqn.png")
+                print("episode:", e, "  score:", score, "  memory length:",
+                      len(agent.memory), "  epsilon:", agent.epsilon)
+
+                # 이전 10개 에피소드의 점수 평균이 490보다 크면 학습 중단
+                # if np.mean(scores[-min(20, len(scores)):]) > 490:
+                #     agent.model.save_weights("../models/rlarm_dqn.h5")
+                #     sys.exit()
